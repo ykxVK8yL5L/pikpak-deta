@@ -1,0 +1,5 @@
+fastapi
+deta
+requests
+jinja2
+
