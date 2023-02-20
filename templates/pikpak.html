@@ -90,11 +90,6 @@
         <v-toolbar-title>${currentUser.username}</v-toolbar-title>
         <v-spacer></v-spacer>
 
-        <v-btn icon @click="showSearch=true">
-          <v-icon>
-            mdi-magnify
-          </v-icon>
-        </v-btn>
 
         <v-btn icon @click="refresh">
           <v-icon>mdi-reload</v-icon>
@@ -266,9 +261,9 @@
           <v-divider></v-divider>
 
           <v-card-actions>
-            <v-btn color="primary" text @click="copyDownload">
+            <!-- <v-btn color="primary" text @click="copyDownload">
               复制下载
-            </v-btn>
+            </v-btn> -->
 
             <v-spacer></v-spacer>
             <v-btn color="primary" text @click="clearDownload">
@@ -620,8 +615,6 @@
         selectedItem: 0,
         trycount: 0,
         settingItems: [
-          { title: '缓存目录', action: 'cacheDir' },
-          { title: '删除目录缓存', action: 'delCache' },
           { title: '登陆', action: 'setLogin' },
           { title: '删除当前用户', action: 'delUser' },
         ],
@@ -775,7 +768,6 @@
           axios.post('/login', data)
             .then(function (response) {
               layer.closeAll('loading');
-              //console.log(response);
               if (response.data == 'error') {
                 layer.msg("请求出错，稍后重试或重新登陆");
                 return false;
@@ -856,7 +848,7 @@
         delUser: function () {
           layer.load(1);
           var that = this;
-          let data = { "username": that.currentUser['username'] };
+          let data = { "username": that.currentUser['username'],"password":"" };
           axios.post('/delUser', data)
             .then(function (response) {
               layer.closeAll('loading');
@@ -921,47 +913,6 @@
               console.log(error);
             });
         },
-        cacheDir: function () {
-          layer.load(1);
-          var that = this;
-          that.files = [];
-          var data = that.currentUser;
-          data['path'] = that.path;
-          var url = '/cacheDir';
-          axios.post(url, data)
-            .then(function (response) {
-              layer.closeAll('loading');
-              if (response.data == 'error') {
-                layer.msg("请求出错，稍后重试或重新登陆");
-                return false;
-              }
-              that.files = response.data['files'];
-            })
-            .catch(function (error) {
-              layer.closeAll('loading');
-              console.log(error);
-            });
-        },
-        delCache: function () {
-          layer.load(1);
-          var that = this;
-          that.files = [];
-          var data = that.currentUser;
-          data['path'] = that.path;
-          var url = '/delCache';
-          axios.post(url, data)
-            .then(function (response) {
-              layer.closeAll('loading');
-              if (response.data == 'error') {
-                layer.msg("请求出错，稍后重试或重新登陆");
-                return false;
-              }
-              that.getFiles();
-            })
-            .catch(function (error) {
-              console.log(error);
-            });
-        },
         getFiles() {
           var that = this;
           var filesload = layer.load(1);
@@ -1005,6 +956,12 @@
           axios.post(url, data)
             .then(function (response) {
               layer.close(eventload);
+             
+              if (response.data.hasOwnProperty('error')) {
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+
               if (response.data == "error") {
                 layer.msg("请求出错，稍后重试或重新登陆");
                 return false;
@@ -1198,28 +1155,6 @@
           }, function () {
             that.ids = [];
           });
-        },
-        search: function () {
-          var that = this;
-          that.searchIndex = 0;
-          that.searchResultIndex = [];
-          if (that.bottomNavition == 0) {
-            for (let [key, file] of that.events.entries()) {
-              if (file.reference_resource.name.toLowerCase().trim().indexOf(that.searchWord) != -1) {
-                that.searchResultIndex.push(key);
-              }
-            }
-            that.$refs.eventsitem[that.searchResultIndex[that.searchIndex]].scrollIntoView();
-          } else {
-            for (let [key, file] of that.files.entries()) {
-              if (file.name.toLowerCase().trim().indexOf(that.searchWord) != -1) {
-                that.searchResultIndex.push(key);
-              }
-            }
-            if (that.searchResultIndex.length > 0) {
-              that.$refs.filesitem[that.searchResultIndex[that.searchIndex]].scrollIntoView();
-            }
-          }
         },
         openVideo: function (videoUrl) {
           var a = window.open('about:blank').document;

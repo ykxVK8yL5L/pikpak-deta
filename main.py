@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
-from fastapi import FastAPI,Request,Body
+from fastapi import FastAPI,Request,Body,Response
 from fastapi.responses import StreamingResponse,HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -30,11 +30,7 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-
-headers = {
-	"User-Agent": ":Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_8; en-us) AppleWebKit/534.50 (KHTML, like Gecko)Version/5.1 Safari/534.50",
-	"content-type": "text/html; charset=utf-8",
-}
+headers = {'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.93 Safari/537.36'}
 
 @app.get("/pikpak", response_class=HTMLResponse)
 async def pklji(request: Request):
@@ -108,12 +104,18 @@ def relogin(user:User):
         user['username'] = username
         user['password'] = password
         user['access_token'] = result['access_token']
-        user['key'] = username
-        DETA_USER_DB.update(user)
+        # user['key'] = username
+        DETA_USER_DB.update(user,username)
         userstring = json.dumps(user)
         return userstring
     return 'error'
 
+
+@app.post('/relogin')
+def relogin(user:User):
+    username = user.username
+    DETA_USER_DB.update(user,username)
+    return 'ok'
 
 @app.get('/getUsers')
 def getUsers():
@@ -124,8 +126,11 @@ def getUsers():
         all_users += res.items
     return all_users
 
-
-
+@app.post('/delUser')
+def delUser(user:User):
+    username = user.username
+    DETA_USER_DB.delete(username)
+    return 'ok'
 
 @app.post('/getEvents')
 def getEvents(item: PostRequest):
@@ -138,11 +143,139 @@ def getEvents(item: PostRequest):
     except:
         return 'error'
     else:
+        return Response(content=r.text, media_type="application/json")
         return r.text
+        result = json.loads(r.text)
+        if r.status_code != 200 or 'error' in result:
+            return 'error'
+        return json.dumps(result)
+
+
+
+@app.post('/getFiles')
+def getFiles(item: PostRequest):
+    ucookies = item.access_token
+    rdata = {'parent_id': item.path,'page_token': item.pagetoken}
+    url = 'https://api-drive.mypikpak.com/drive/v1/files?thumbnail_size=SIZE_LARGE&with_audit=true&parent_id='+item.path+'&page_token='+item.pagetoken+'&filters=%7B%22phase%22:%7B%22eq%22:%22PHASE_TYPE_COMPLETE%22%7D,%22trashed%22:%7B%22eq%22:false%7D%7D'
+    headers['referer'] = "https://api-drive.mypikpak.com/drive/v1/files"
+    headers['Authorization']='Bearer '+ucookies
+    try:
+        r = requests.get(url, verify=False,headers=headers, timeout=100)
+    except:
+        return 'error'
+    else:
+        return Response(content=r.text, media_type="application/json")
+        return r.text
+        result = json.loads(r.text)
+        if r.status_code != 200 or 'error' in result:
+            return 'error'
+        return json.dumps(result)
+
+
+@app.post('/delFile')
+def delFile(item: PostRequest):
+    ucookies = item.access_token
+    trashurl = 'https://api-drive.mypikpak.com/drive/v1/files:batchTrash'
+    deleteurl = 'https://api-drive.mypikpak.com/drive/v1/files:batchDelete' 
+    headers['referer'] = "https://api-drive.mypikpak.com/drive/v1/files"
+    headers['Authorization']='Bearer '+ucookies
+    ids = json.loads(item.ids);
+    payload = json.dumps({
+        "ids": ids
+    })
+    try:
+        r = requests.post(deleteurl, verify=False,data=payload, headers=headers, timeout=100)
+    except:
+        return 'error'
+    else:
+        dresult = json.loads(r.text)
+        if r.status_code != 200:
+            return 'error'
+        return json.dumps(dresult)
+
+
+
+@app.post('/getDownload')
+def getDownload(item: PostRequest):
+    ucookies = item.access_token
+    headers['referer'] = "https://api-drive.mypikpak.com/drive/v1/files"
+    headers['Authorization']='Bearer '+ucookies
+
+    url = '' 
+    if item.id == '/':
+        url = 'https://api-drive.mypikpak.com/drive/v1/files'
+    else:
+        url = 'https://api-drive.mypikpak.com/drive/v1/files/'+item.id
+   
+    try:
+        r = requests.get(url, verify=False,headers=headers, timeout=100)
+    except:
+        return 'error'
+    else:
+        return Response(content=r.text, media_type="application/json")
         result = json.loads(r.text)
         if r.status_code != 200:
             return 'error'
         return json.dumps(result)
+
+
+@app.post('/offline')
+def offline(item: PostRequest):
+    ucookies = item.access_token
+    url = 'https://api-drive.mypikpak.com/drive/v1/files'
+    keyword = item.textLink
+    headers['referer'] = "https://api-drive.mypikpak.com/drive/v1/files"
+    headers['Authorization']='Bearer '+ucookies
+
+    postData = {
+            "kind": "drive#file",
+            "name": "",
+            "parent_id": '',
+            "upload_type": "UPLOAD_TYPE_URL",
+            "url": {
+              "url": keyword
+            },
+            "params": {"from":"file"},
+            "folder_type": "DOWNLOAD"
+          }
+    r = requests.post(url, verify=False, data=json.dumps(postData), headers=headers,timeout=100)
+    result = json.loads(r.text)
+    if r.status_code != 200 or result['upload_type'] is None:
+        return 'error'
+    return json.dumps(r.text)
+
+
+@app.route('/delFile', methods=['POST'])
+def delFile():
+    data = request.get_json(silent=True)
+    if 'access_token' not in data.keys():
+        return 'error'
+    ucookies = data['access_token'] 
+    trashurl = 'https://api-drive.mypikpak.com/drive/v1/files:batchTrash'
+    deleteurl = 'https://api-drive.mypikpak.com/drive/v1/files:batchDelete' 
+
+    headers['referer'] = "https://api-drive.mypikpak.com/drive/v1/files"
+    headers['Authorization']='Bearer '+ucookies
+    ids = json.loads(data['ids']);
+    payload = json.dumps({
+        "ids": ids
+    })
+    try:
+        r = requests.post(deleteurl, verify=False,data=payload, headers=headers, timeout=100)
+    except:
+        return 'error'
+    else:
+            dresult = json.loads(r.text)
+            if r.status_code != 200:
+                return 'error'
+            return json.dumps(dresult)
+
+
+
+
+
+
+
 
 @app.post('/getVip')
 def getVip(item: PostRequest):
@@ -155,13 +288,12 @@ def getVip(item: PostRequest):
     except:
         return 'error'
     else:
+        return Response(content=r.text, media_type="application/json")
         return r.text
         result = json.loads(r.text)
-        if r.status_code != 200:
+        if r.status_code != 200 or 'error' in result:
             return 'error'
         return json.dumps(result)
-
-
 
 
 @app.get("/")
