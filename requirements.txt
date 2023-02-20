@@ -2,4 +2,4 @@ fastapi
 deta
 requests
 jinja2
-
+aiofiles

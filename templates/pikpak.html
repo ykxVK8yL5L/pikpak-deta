@@ -3,8 +3,8 @@
 <head>
   <title>PikPak-Vuetify</title>
   <meta charset="utf-8">
-  <link href="{{ url_for('static', path='css/roboto.css') }}" rel="stylesheet">
-  <link href="{{ url_for('static', path='css/materialdesignicons.css') }}" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/roboto-font@0.1.0/css/fonts.min.css" rel="stylesheet">
+  <link href="https://cdn.bootcdn.net/ajax/libs/MaterialDesign-Webfont/7.1.96/css/materialdesignicons.min.css" rel="stylesheet">
   <link href="{{ url_for('static', path='css/vuetify.min.css') }}" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
   <style>
@@ -59,7 +59,6 @@
     <v-app>
       <v-navigation-drawer v-model="drawer" mobile-breakpoint="960" app width="260" dark
         src="https://s3.bmp.ovh/imgs/2022/07/12/61d68de31c8951af.jpeg">
-        <!-- https://raw.githubusercontent.com/wclr/material-dashboard-pro/master/assets/img/sidebar-1.jpg -->
         <template v-slot:img="props">
           <v-img :gradient="`to bottom, rgba(0, 0, 0, .6), rgba(0, 0, 0, .7)`" v-bind="props" />
         </template>
@@ -79,7 +78,6 @@
           <v-subheader>导航</v-subheader>
           <v-list-item-group v-model="selectedItem" mandatory color="pink">
             <v-list-item v-for="(user, i) in allusers" :key="i" @click="changeUser(user)">
-
               <v-list-item-content>
                 <v-list-item-title v-text="user.username"></v-list-item-title>
               </v-list-item-content>
@@ -694,9 +692,9 @@
         },
         overlay: async function (newval) {
           if (newval == false) {
-            // this.getUsers().then((res) => {
-            //   this.getEvents()
-            // })
+            this.getUsers().then((res) => {
+              this.getEvents()
+            })
           }
         },
         currentUser(newval) {
@@ -807,7 +805,7 @@
             that.trycount = 0;
             return false;
           }
-          let data = { "username": that.currentUser.username };
+          let data = { "username": that.currentUser.username,"password":""};
           axios.post('/relogin', data)
             .then(function (response) {
               layer.closeAll('loading');
@@ -1007,15 +1005,6 @@
           axios.post(url, data)
             .then(function (response) {
               layer.close(eventload);
-              //console.log(response);
-              // if(response.data.hasOwnProperty('error')){
-              //   if(response.data.error=="unauthenticated"){
-              //       //that.relogin();
-              //       return false;
-              //   }
-              //   layer.msg("请求出错，稍后重试或重新登陆");
-              //   return false;
-              // }    
               if (response.data == "error") {
                 layer.msg("请求出错，稍后重试或重新登陆");
                 return false;
