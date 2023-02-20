@@ -6,7 +6,7 @@ git: ""
 homepage: ""
 ---
 
-PikPak - 极速秒存的私密云盘. 目前还未完成请勿使用。
+PikPak - 极速秒存的私密云盘. 
 
 PikPak comes with:
 
