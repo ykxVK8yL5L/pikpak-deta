@@ -32,9 +32,14 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 headers = {'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.93 Safari/537.36'}
 
-@app.get("/pikpak", response_class=HTMLResponse)
-async def pklji(request: Request):
+@app.get("/", response_class=HTMLResponse)
+async def pikpak(request: Request):
     return templates.TemplateResponse("pikpak.html",{'request': request})
+
+
+@app.get("/pikpak/{userindex}/{folderid}", response_class=HTMLResponse)
+async def pikpak_folder(userindex: int,folderid: str,request: Request):
+    return templates.TemplateResponse("pikpak_folder.html",{'request': request,'userindex':userindex,'folderid':folderid})
 
 
 class User(BaseModel):
@@ -120,11 +125,17 @@ def relogin(user:User):
 @app.get('/getUsers')
 def getUsers():
     res = DETA_USER_DB.fetch()
+    index = 0
     all_users = res.items
     while res.last:
         res = db.fetch(last=res.last)
         all_users += res.items
-    return all_users
+    users = []
+    for user in all_users:
+        user['index']=index
+        users.append(user)
+        index+=1
+    return users
 
 @app.post('/delUser')
 def delUser(user:User):
@@ -272,11 +283,6 @@ def delFile():
 
 
 
-
-
-
-
-
 @app.post('/getVip')
 def getVip(item: PostRequest):
     ucookies = item.access_token
@@ -294,9 +300,3 @@ def getVip(item: PostRequest):
         if r.status_code != 200 or 'error' in result:
             return 'error'
         return json.dumps(result)
-
-
-@app.get("/")
-async def root():    
-    return "Hello World!"
-

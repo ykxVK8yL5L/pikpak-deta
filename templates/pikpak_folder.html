@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PikPak-Vuetify</title>
+  <meta charset="utf-8">
+  <link href="https://cdn.jsdelivr.net/npm/roboto-font@0.1.0/css/fonts.min.css" rel="stylesheet">
+  <link href="https://cdn.bootcdn.net/ajax/libs/MaterialDesign-Webfont/7.1.96/css/materialdesignicons.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', path='css/vuetify.min.css') }}" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+  <style>
+    .current_search {
+      color: brown;
+    }
+
+    .has_word {
+      color: #ff7403;
+    }
+
+    .files_toolbar {
+      position: -webkit-sticky;
+      position: -moz-sticky;
+      position: -o-sticky;
+      position: -ms-sticky;
+      position: sticky;
+      top: 75px;
+      z-index: 2;
+    }
+
+    .v-overlay--absolute .v-overlay__scrim {
+      background-image: linear-gradient(to top, #9b23ea 0%, #5f72bd 100%);
+    }
+
+    .v-overlay--absolute .v-overlay__scrim:after {
+      content: '';
+      display: block;
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      background: url("{{ url_for('static', path='img/overlay-bg.png') }}") repeat center center;
+      opacity: .4;
+    }
+
+  #app .v-speed-dial {
+    position: fixed;
+    bottom: 60px;
+    z-index: 999;
+  }
+
+  #app .v-btn--floating {
+    position: relative;
+  }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <v-app>
+      <v-navigation-drawer v-model="drawer" mobile-breakpoint="960" app width="260" dark
+        src="https://s3.bmp.ovh/imgs/2022/07/12/61d68de31c8951af.jpeg">
+        <template v-slot:img="props">
+          <v-img :gradient="`to bottom, rgba(0, 0, 0, .6), rgba(0, 0, 0, .7)`" v-bind="props" />
+        </template>
+        <v-list dense nav>
+          <v-list-item>
+            <v-list-item-avatar class="align-self-center">
+              <v-avatar color="orange" size="36">
+                <span class="white--text text-h5">N</span>
+              </v-avatar>
+            </v-list-item-avatar>
+            <v-list-item-content>
+              <v-list-item-title class="display-5" v-text="hello" />
+            </v-list-item-content>
+          </v-list-item>
+        </v-list>
+        <v-list flat>
+          <v-subheader>导航</v-subheader>
+          <v-list-item-group v-model="selectedItem" mandatory color="pink">
+            <v-list-item v-for="(user, i) in allusers" :key="i" @click="changeUser(user)">
+              <v-list-item-content>
+                <v-list-item-title v-text="user.username"></v-list-item-title>
+              </v-list-item-content>
+            </v-list-item>
+          </v-list-item-group>
+        </v-list>
+      </v-navigation-drawer>
+      <v-app-bar fixed color="white" app flat height="75">
+        <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
+        <v-toolbar-title>${currentUser.username}</v-toolbar-title>
+        <v-spacer></v-spacer>
+
+
+        <v-btn icon @click="refresh">
+          <v-icon>mdi-reload</v-icon>
+        </v-btn>
+
+        <v-btn icon @click="offline">
+          <v-icon>mdi-plus</v-icon>
+        </v-btn>
+
+        <v-btn v-if="download_list.length>0" icon @click="showDownloadList=true">
+          <v-badge color="green" :content="download_list.length" overlap offset-x="5" offset-y="10">
+            <v-icon>mdi-download</v-icon>
+          </v-badge>
+        </v-btn>
+
+        <v-menu offset-y>
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn v-bind="attrs" v-on="on" icon>
+              <v-icon>mdi-dots-vertical</v-icon>
+            </v-btn>
+          </template>
+          <v-list>
+            <v-list-item v-for="(item, index) in settingItems" :key="index"
+              @click="handleFunctionCall(item.action,$event)">
+              <v-list-item-title>${ item.title }</v-list-item-title>
+            </v-list-item>
+
+
+            <v-dialog v-model="setting.dialog" fullscreen hide-overlay transition="dialog-bottom-transition">
+              <template v-slot:activator="{ on, attrs }">
+                <v-list-item v-bind="attrs" v-on="on">
+                  <v-list-item-title>
+                    设置
+                  </v-list-item-title>
+                </v-list-item>
+
+              </template>
+              <v-card>
+                <v-toolbar dark color="primary">
+                  <v-btn icon dark @click="setting.dialog = false">
+                    <v-icon>mdi-close</v-icon>
+                  </v-btn>
+                  <v-toolbar-title>设置</v-toolbar-title>
+                  <v-spacer></v-spacer>
+                  <v-toolbar-items>
+                    <v-btn dark text @click="setting.dialog = false;saveSetting()">
+                      保存
+                    </v-btn>
+                  </v-toolbar-items>
+                </v-toolbar>
+                <v-list three-line subheader>
+                  <v-subheader>屏幕锁</v-subheader>
+                  <v-list-item>
+                    <v-list-item-action>
+                      <v-switch v-model="ebableLock" :label="ebableLock?'开启':'关闭'"></v-switch>
+                    </v-list-item-action>
+                    <v-list-item-content>
+                      <v-list-item-title>
+                        <v-text-field :disabled="!ebableLock" v-model="lockCode" label="屏幕锁密码"></v-text-field>
+                      </v-list-item-title>
+                    </v-list-item-content>
+                  </v-list-item>
+                </v-list>
+                <v-divider></v-divider>
+                <v-list>
+                  <v-subheader>Aria2设置</v-subheader>
+                  <v-list-item>
+                    <v-list-item-content>
+                      <v-list-item-title>
+                        <v-text-field v-model="aria2Url" label="Aria2地址"></v-text-field>
+                      </v-list-item-title>
+                    </v-list-item-content>
+                  </v-list-item>
+                  <v-list-item>
+                    <v-list-item-content>
+                      <v-list-item-title>
+                        <v-text-field v-model="aria2Token" label="Aria2 Token"></v-text-field>
+                      </v-list-item-title>
+                    </v-list-item-content>
+                  </v-list-item>
+                  <v-list-item>
+                    <v-list-item-content>
+                      <v-list-item-title>
+                        <v-text-field v-model="aria2Dir" label="文件保存目录"></v-text-field>
+                      </v-list-item-title>
+                    </v-list-item-content>
+                  </v-list-item>
+                </v-list>
+              </v-card>
+            </v-dialog>
+
+
+
+
+          </v-list>
+        </v-menu>
+
+        <!-- <template v-slot:extension>
+        </template> -->
+      </v-app-bar>
+      <!-- 其它操作视图元素开始 -->
+      <!-- 登陆弹出框-->
+      <v-dialog v-model="showLogin" persistent max-width="600px">
+        <v-card>
+          <v-card-title>
+            <span class="text-h5">登陆</span>
+          </v-card-title>
+          <v-card-text>
+            <v-container>
+              <v-row>
+                <v-col cols="12" sm="12" md="12">
+                  <v-text-field label="用户名*" v-model="username" required></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="12" md="12">
+                  <v-text-field :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+                    :type="showPassword ? 'text' : 'password'" label="密码*" @click:append="showPassword = !showPassword"
+                    v-model="password" required></v-text-field>
+                </v-col>
+              </v-row>
+            </v-container>
+            <small>*为必填项</small>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="blue darken-1" text @click="showLogin = false">
+              取消
+            </v-btn>
+            <v-btn color="blue darken-1" text @click="login">
+              保存
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+
+      </v-dialog>
+
+      <!--下载列表弹出框-->
+      <v-dialog v-model="showDownloadList" max-width="600px">
+        <v-card>
+          <v-card-title class="text-h5 grey lighten-2">
+            下载列表
+          </v-card-title>
+
+          <v-card-text>
+            <v-data-table :headers="download_list_headers" :items="download_list" class="elevation-1 text-break">
+              <template v-slot:top>
+                <v-toolbar class="pa-0">
+                  <v-btn color="primary" dark class="mb-2" @click="quickRename">
+                    快速重命名
+                  </v-btn>
+                </v-toolbar>
+              </template>
+              <template v-slot:item.name="{ item }">
+                <v-chip color="orange" dark>
+                  ${ item.name }
+                </v-chip>
+              </template>
+              <template v-slot:item.actions="{ item }">
+                <v-icon small @click="editDownloadItem(item)">
+                  mdi-pencil
+                </v-icon>
+
+                <v-icon small @click="deleteDownload(item)">
+                  mdi-delete
+                </v-icon>
+              </template>
+            </v-data-table>
+          </v-card-text>
+
+          <v-divider></v-divider>
+
+          <v-card-actions>
+            <!-- <v-btn color="primary" text @click="copyDownload">
+              复制下载
+            </v-btn> -->
+
+            <v-spacer></v-spacer>
+            <v-btn color="primary" text @click="clearDownload">
+              清空
+            </v-btn>
+
+            <v-btn color="primary" text @click="showDownloadList = false">
+              关闭
+            </v-btn>
+            <v-spacer></v-spacer>
+            <v-btn color="primary" text @click="aria2Download">
+              Aria2下载
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!--修改下载信息弹出框开始-->
+      <v-dialog v-model="dialogEditDownload" max-width="500px">
+        <v-card>
+          <v-card-title>
+            <span class="text-h5">${ editItemOriName }</span>
+          </v-card-title>
+          <v-card-text>
+            <v-container>
+              <v-row>
+                <v-col cols="12">
+                  <v-text-field v-model="editedDownloadItem.name" label="文件名"></v-text-field>
+                </v-col>
+              </v-row>
+            </v-container>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="blue darken-1" text @click="closeEditDownload">
+              取消
+            </v-btn>
+            <v-btn color="blue darken-1" text @click="saveEditDownload">
+              保存
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+      <!--修改下载信息弹出框结束-->
+
+
+
+      <!-- 其它操作视图元素结束 -->
+      <v-main>
+        <v-container v-if="Object.keys(vipInfo).length >= 0 && vipInfo.status=='ok'">
+          <v-row>
+            <v-col>
+              <v-alert type="success" icon="mdi-crown-outline">
+                过期时间:${vipInfo.expire}
+              </v-alert>
+            </v-col>
+          </v-row>
+        </v-container>
+        <v-container v-if="contentContainer=='files'" style="padding-bottom: 60px;">
+          <v-toolbar class="files_toolbar">
+            <v-btn icon @click="path='';pagetoken='';files=[];getFiles()">
+              <v-icon>mdi-home</v-icon>
+            </v-btn>
+            <v-btn icon @click="path=current.parent_id;pagetoken='';files=[];getFiles()">
+              <v-icon>mdi-folder-arrow-left</v-icon>
+            </v-btn>
+            <v-btn icon v-if="selecting==true" @click="ids=[];selecting=false;">
+              <v-icon left>
+                mdi-minus-circle
+              </v-icon>${ids.length}
+            </v-btn>
+            <v-spacer></v-spacer>
+            <v-btn icon v-if="ids.length>0" @click="delfiles">
+              <v-icon>
+                mdi-delete
+              </v-icon>
+            </v-btn>
+            <v-btn icon @click="selecting=!selecting;ids=[];">
+              <!-- <v-icon>
+                mdi-format-list-bulleted-square
+              </v-icon> -->
+              <v-icon>
+                mdi-checkbox-outline
+              </v-icon>
+            </v-btn>
+            <v-btn icon @click="liststyle==0?liststyle=1:liststyle=0">
+              <v-icon v-if="liststyle==0">
+                mdi-format-list-bulleted-square
+              </v-icon>
+              <v-icon v-if="liststyle==1">
+                mdi-view-grid-outline
+              </v-icon>
+            </v-btn>
+          </v-toolbar>
+
+
+          <v-row dense id="filelist">
+            <v-col ref="filesitem" v-for="(file, index) in files" :key="index" cols="12" md="2">
+              <v-card>
+
+                <v-img v-if="liststyle==1" :src="file['thumbnail_link'].length==0?file['icon_link']:file['thumbnail_link']"
+                  :alt="file['name']" class="white--text align-end" height="200px"
+                  @click="file['kind']=='drive#folder' ? (path=file.id,current=file,pagetoken='',files=[],getFiles()) : play(file)">
+                </v-img>
+
+
+                <v-list-item two-line>
+                  <v-list-item-action v-if="selecting==true">
+                    <v-checkbox v-model="ids" :value="file['id']"></v-checkbox>
+                  </v-list-item-action>
+                  <v-list-item-content>
+                    <v-list-item-title style="white-space:normal" class="headline mb-1"
+                      :class="{ 'has_word': searchResultIndex.indexOf(index) != -1 && index!=searchResultIndex[searchIndex], 'current_search': index==searchResultIndex[searchIndex]&& searchResultIndex.length>0 }"
+                      v-text="file['name']"
+                      @click="file['kind']=='drive#folder' ? (path=file.id,current=file,pagetoken='',files=[],getFiles()) : play(file)">
+                    </v-list-item-title>
+                  </v-list-item-content>
+                </v-list-item>
+
+
+                <v-card-text class="mt-n5 mx-auto">
+                  <p>
+                    <span v-show="file['kind']=='drive#file'">${file['size']|bytesToSize}</span>
+                    ${file['created_time']|formatDate}
+                  </p>
+                </v-card-text>
+                <v-card-actions class="mt-n10 mx-auto justify-space-between" style="flex-flow: wrap">
+                  <v-btn text v-show="file['kind']=='drive#folder'" :href="'/pikpak/'+currentUser['index']+'/'+file.id"
+                    target="_blank">
+                    新窗口打开
+                  </v-btn>
+                  <v-btn text v-show="file['kind']=='drive#file'" @click="play(file)">
+                    播放
+                  </v-btn>
+                  <v-btn text @click="ids.push(file['id']);delfiles()">
+                    彻底删除
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-col>
+
+
+            <v-col cols="12" v-if="pagetoken.length>5">
+              <v-btn block @click="LoadMore" v-show="pagetoken.length>5">
+                加载更多
+              </v-btn>
+            </v-col>
+          </v-row>
+        </v-container>
+
+        <v-container v-if="contentContainer=='recent'" style="padding-bottom: 60px;">
+
+          <v-toolbar class="files_toolbar">
+            <v-btn icon v-if="selecting==true" @click="ids=[];selecting=false;">
+              <v-icon left>
+                mdi-minus-circle
+              </v-icon>${ids.length}
+            </v-btn>
+            <v-spacer></v-spacer>
+            <v-btn icon v-if="ids.length>0" @click="delfiles">
+              <v-icon>
+                mdi-delete
+              </v-icon>
+            </v-btn>
+            <v-btn icon @click="selecting=!selecting;ids=[];">
+              <v-icon>
+                mdi-checkbox-outline
+              </v-icon>
+            </v-btn>
+
+            <v-btn icon @click="liststyle==0?liststyle=1:liststyle=0">
+              <v-icon v-if="liststyle==0">
+                mdi-format-list-bulleted-square
+              </v-icon>
+              <v-icon v-if="liststyle==1">
+                mdi-view-grid-outline
+            </v-icon>
+            </v-btn>
+          </v-toolbar>
+
+          <v-row dense id="eventlist">
+
+            <v-col ref="eventsitem" v-for="(file, index) in events" :key="index" cols="12" md="2">
+              <v-card>
+                <v-img
+                  v-if="liststyle==1"
+                  :src="file['reference_resource']['thumbnail_link'].length==0?file['reference_resource']['icon_link']:file['reference_resource']['thumbnail_link']"
+                  :alt="file['reference_resource']['name']" class="white--text align-end" height="200px"
+                  @click="file['reference_resource']['kind']=='drive#folder'?(path=file['reference_resource']['id'],current=file.reference_resource,pagetoken='',files=[],bottomNavition=1): play(file)">
+                </v-img>
+
+                <v-list-item two-line>
+                  <v-list-item-action v-if="selecting==true">
+                    <v-checkbox v-model="ids" :value="file['reference_resource']['id']"></v-checkbox>
+                  </v-list-item-action>
+                  <v-list-item-content>
+                    <v-list-item-title style="white-space:normal" class="headline mb-1"
+                      :class="{ 'has_word': searchResultIndex.indexOf(index) != -1 && index!=searchResultIndex[searchIndex], 'current_search': index==searchResultIndex[searchIndex]&& searchResultIndex.length>0 }"
+                      v-text="file['reference_resource']['name']"
+                      @click="file['reference_resource']['kind']=='drive#folder'?(path=file['reference_resource']['id'],current=file.reference_resource,pagetoken='',files=[],bottomNavition=1): play(file)">
+                    </v-list-item-title>
+                  </v-list-item-content>
+                </v-list-item>
+
+                <v-card-text class="mt-n5 mx-auto">
+                  <p>
+                    <span
+                      v-if="file['reference_resource']['kind']=='drive#file'">${file['reference_resource']['size']|bytesToSize}</span>
+                    ${file['created_time']|formatDate}
+                  </p>
+                </v-card-text>
+                <v-card-actions class="mt-n10 mx-auto justify-space-between" style="flex-flow: wrap">
+                  <v-btn text v-show="file['reference_resource']['kind']=='drive#folder'"
+                    :href="'/pikpak/'+currentUser['index']+'/'+file.reference_resource.id" target="_blank">
+                    新窗口打开
+                  </v-btn>
+                  <v-btn text v-show="file['reference_resource']['kind']=='drive#file'" @click="play(file)">
+                    播放
+                  </v-btn>
+                  <v-btn text @click="ids.push(file['reference_resource']['id']);delfiles()">
+                    彻底删除
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-col>
+            <v-col cols="12" v-if="evnetPageToken.length>5">
+              <v-btn block @click="LoadMore" v-show="evnetPageToken.length>5">
+                加载更多
+              </v-btn>
+            </v-col>
+          </v-row>
+        </v-container>
+
+    
+      </v-main>
+      <v-bottom-navigation v-model="bottomNavition" color="primary" style="position: fixed" absolute>
+        <v-btn>
+          <v-icon>mdi-history</v-icon>
+        </v-btn>
+
+        <v-btn>
+          <v-icon>mdi-folder</v-icon>
+        </v-btn>
+
+      </v-bottom-navigation>
+
+
+      <v-overlay :absolute="absolute" :opacity="opacity" :value="overlay" color="rgb(25 68 90)">
+        <v-text-field outlined filled type="password" v-model="filllockcode" label="屏幕锁密码"></v-text-field>
+      </v-overlay>
+
+      <v-speed-dial
+      v-model="fabm"
+      :top="top"
+      :bottom="bottom"
+      :right="right"
+      :left="left"
+      :direction="direction"
+      :open-on-hover="hover"
+      :transition="transition"
+    >
+      <template v-slot:activator>
+        <v-btn
+          v-model="fabm"
+          color="blue darken-2"
+          dark
+          fab
+        >
+          <v-icon v-if="fabm">
+            mdi-close
+          </v-icon>
+          <v-icon v-else>
+            mdi-menu
+          </v-icon>
+        </v-btn>
+      </template>
+      <v-btn
+        fab
+        dark
+        small
+        color="green"
+        @click="relogin"
+      >
+        <v-icon>mdi-refresh</v-icon>
+      </v-btn>
+      <v-btn
+        fab
+        dark
+        small
+        color="indigo"
+        @click="toTop"
+      >
+        <v-icon>mdi-arrow-up</v-icon>
+      </v-btn>
+    </v-speed-dial>
+    </v-app>
+  </div>
+  <script type="application/javascript" src="{{ url_for('static', path='js/jquery-3.5.1.min.js') }}"></script>
+  <script src="{{ url_for('static', path='js/vue.js') }}"></script>
+  <script src="{{ url_for('static', path='js/axios.min.js') }}"></script>
+  <script src="{{ url_for('static', path='js/vuetify.min.js') }}"></script>
+  <script type="application/javascript" src="{{ url_for('static', path='layer/layer.js') }}"></script>
+  <script type="application/javascript" src="{{ url_for('static', path='js/vue-clipboard.min.js') }}"></script>
+  <script>
+    const axios_instance = axios.create({
+      timeout: 6000,
+    });
+    axios = axios_instance;
+    const pluck = (arr, key) => arr.map(i => i[key]);
+
+    var app = new Vue({
+      el: '#app',
+      delimiters: ['${', '}'],
+      vuetify: new Vuetify(),
+      data: () => ({
+        tabs: null,
+        drawer: false,
+        group: null,
+        fab: false,
+        direction: 'top',
+        fabm: false,
+        fling: false,
+        hover: false,
+        tabs: null,
+        top: false,
+        right: true,
+        bottom: true,
+        left: false,
+        transition: 'slide-y-reverse-transition',
+        setting: { "dialog": false },
+        ebableLock: false,
+        lockCode: '',
+        absolute: true,
+        opacity: 1,
+        liststyle:1,
+        overlay: true,
+        filllockcode: '',
+        aria2Url: 'http://127.0.0.1:6800/jsonrpc',
+        aria2Token: '123456',
+        aria2Dir: '/downloads',
+        showLogin: false,
+        showSearch: false,
+        searchIndex: 0,
+        searchResultIndex: [],
+        showPassword: false,
+        hello: "控制台",
+        searchWord: '',
+        bottomNavition: 1,
+        selectedItem: 0,
+        trycount: 0,
+        settingItems: [
+          { title: '登陆', action: 'setLogin' },
+          { title: '删除当前用户', action: 'delUser' },
+        ],
+        download_status:{0:'red',1:'orange',10:'green'},
+        vipInfo: {},
+        current: {},
+        files: [],
+        events: [],
+        downloads: [],
+        downloads_headers: [{ text: '名称', value: 'name' }, { text: '状态', value: 'isnow' }, { text: '过期', value: 'expire' }, { text: '操作', value: 'actions', sortable: false }],
+        ids: [],
+        selecting: false,
+        medias: [],
+        paths: [],
+        allusers: [],
+        currentUser: {},
+        path:'{{folderid}}',
+        userindex:{{userindex}},
+        username: '',
+        password: '',
+        action: 'file',
+        keyword: '',
+        identity: '',
+        playUrl: '',
+        pagetoken: '',
+        evnetPageToken: '',
+        showDownloadList: false,
+        dialogEditDownload: false,
+        download_list: [],
+        //download_list_headers: [{text: '名称', value: 'name'},{text: '下载地址',value: 'url'},{ text: '操作', value: 'actions', sortable: false }],
+        download_list_headers: [{ text: '名称', value: 'name' }, { text: '操作', value: 'actions', sortable: false }],
+        editedDownloadIndex: -1,
+        editItemOriName: '',
+        editedDownloadItem: {},
+        editedDownloadItem: { name: '', url: '' },
+      }),
+      computed: {
+        contentContainer() {
+          switch (this.bottomNavition) {
+            case 0: return 'recent'
+            case 1: return 'files'
+            case 2: return 'downloads'
+            default: return 'recent'
+          }
+        },
+      },
+      watch: {
+        group() {
+          this.drawer = false
+        },
+        dialogEditDownload(val) {
+          val || this.closeEditDownload()
+        },
+        path() {
+          this.files = [];
+        },
+        liststyle(newval) {
+          localStorage.setItem("liststyle", newval);
+        },
+        bottomNavition(newval) {
+          selecting = false;
+          ids = [];
+          if (this.bottomNavition == 1 && this.files.length <= 0) {
+            this.getFiles();
+          }
+          if (this.bottomNavition == 2 && this.downloads.length <= 0) {
+            this.getDownloads();
+          }
+        },
+        overlay: async function (newval) {
+          if (newval == false) {
+            this.getUsers().then((res) => {
+              this.getEvents()
+            })
+          }
+        },
+        currentUser(newval) {
+          if (newval.hasOwnProperty('username')) {
+            localStorage.setItem("currentUser", JSON.stringify(newval));
+          } else {
+            localStorage.setItem("currentUser", JSON.stringify(this.allusers[0]));
+          }
+        },
+        filllockcode(newval) {
+          var lock = localStorage.getItem("lockCode");
+          if (newval == lock) {
+            this.overlay = false;
+          }
+        }
+      },
+      mounted() {
+        this.$nextTick(function () {
+
+        })
+        if (localStorage.ebableLock) {
+          this.overlay = JSON.parse(localStorage.ebableLock);
+          this.ebableLock = JSON.parse(localStorage.ebableLock);
+        } else {
+          this.overlay = false;
+        }
+        if (localStorage.lockCode) {
+          this.lockCode = localStorage.lockCode;
+        }
+        if (localStorage.liststyle) {
+          this.liststyle = localStorage.liststyle;
+        }
+
+        if (localStorage.getItem("downloadList")) {
+          this.download_list = JSON.parse(localStorage.getItem("downloadList"));
+        }
+        if (localStorage.aria2Url) {
+          this.aria2Url = localStorage.aria2Url;
+        }
+        if (localStorage.aria2Token) {
+          this.aria2Token = localStorage.aria2Token;
+        }
+        if (localStorage.aria2Dir) {
+          this.aria2Dir = localStorage.aria2Dir;
+        }
+      },
+      filters: {
+        bytesToSize: function (bytes) {
+          if (bytes === 0) return '0 B';
+          var k = 1024;
+          sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+          i = Math.floor(Math.log(bytes) / Math.log(k));
+          return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+        },
+        formatDate: function (date) {
+          var d = new Date(date);
+          var year = d.getFullYear();
+          var month = d.getMonth() + 1;
+          var day = d.getDate() < 10 ? '0' + d.getDate() : '' + d.getDate();
+          var hour = d.getHours();
+          var minutes = d.getMinutes();
+          var seconds = d.getSeconds();
+          return year + '-' + month + '-' + day + ' ' + hour + ':' + minutes + ':' + seconds;
+        },
+        downloadStatus: function (status) {
+          var msg = "等待下载";
+          if (status == 10) {
+            msg = "下载中";
+          }
+          return msg;
+        }
+      },
+      methods: {
+        login() {
+          layer.load(1);
+          var that = this;
+          let data = { "username": this.username, "password": this.password };
+          axios.post('/login', data)
+            .then(function (response) {
+              layer.closeAll('loading');
+              if (response.data == 'error') {
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+              that.currentUser = { "username": response.data.username };
+              that.selectedItem = 0;
+              that.showLogin = false;
+              that.pagetoken = "";
+              that.evnetPageToken = "";
+              that.files = [];
+              that.events = [];
+              that.getUsers().then((res) => {
+                that.getEvents();
+              });
+            })
+            .catch(function (error) { // 请求失败处理
+              layer.closeAll('loading');
+              console.log(error);
+            });
+        },
+        relogin() {
+          layer.load(1);
+          var that = this;
+          if (that.trycount > 3) {
+            layer.msg("尝试次数超过3次，请检查用户名和密码");
+            layer.closeAll('loading');
+            that.trycount = 0;
+            return false;
+          }
+          let data = { "username": that.currentUser.username,"password":""};
+          axios.post('/relogin', data)
+            .then(function (response) {
+              layer.closeAll('loading');
+              if (response.data == 'error') {
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+              that.trycount += 1;
+              that.getUsers().then((res) => {
+                that.getEvents();
+              });
+            })
+            .catch(function (error) { // 请求失败处理
+              layer.closeAll('loading');
+              console.log(error);
+            });
+        },
+        getUsers() {
+          var that = this;
+          var allusersload = layer.load(1);
+          return axios.get('/getUsers')
+            .then(function (response) {
+              layer.close(allusersload);
+              if (response.data == 'error') {
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+
+
+              if(that.allusers.length>0){
+                      that.currentUser = that.allusers[that.userindex];
+                      that.selectedItem = that.userindex;
+                      that.getFiles();
+                  }
+
+
+              if (response.data.length > 0) {
+                that.allusers = response.data;
+                if(that.allusers.length>0){
+                      that.currentUser = that.allusers[that.userindex];
+                      that.selectedItem = that.userindex;
+                      that.getFiles();
+                }
+              }
+            })
+            .catch(function (error) { // 请求失败处理
+              console.log(error);
+            });
+        },
+        delUser: function () {
+          layer.load(1);
+          var that = this;
+          let data = { "username": that.currentUser['username'],"password":"" };
+          axios.post('/delUser', data)
+            .then(function (response) {
+              layer.closeAll('loading');
+              if (response.data == 'error') {
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+              that.currentUser = {};
+              that.selectedItem = 0;
+              that.bottomNavition = 0;
+              that.pagetoken = "";
+              that.evnetPageToken = "";
+              that.files = [];
+              that.events = [];
+              that.getUsers().then((res) => {
+                that.getEvents();
+              });
+            })
+            .catch(function (error) { // 请求失败处理
+              console.log(error);
+            });
+        },
+        changeUser: function (user) {
+          this.selectedItem = user.index;
+          this.pageNo = 1;
+          this.totalPage = 1;
+          this.totalNum = 0;
+          this.path = '';
+          this.action = 'file';
+          this.keyword = '';
+          this.currentUser = user;
+          this.pagetoken = '';
+          this.evnetPageToken = '';
+          this.vipInfo = {};
+          this.files = [];
+          this.events = [];
+          this.medias = [];
+          this.bottomNavition = 0;
+          this.getEvents();
+
+        },
+        getVip: function () {
+          var vipload = layer.load(1);
+          var that = this;
+          var data = that.currentUser;
+          var url = '/getVip';
+          axios.post(url, data)
+            .then(function (response) {
+              layer.close(vipload);
+              if (response.data.hasOwnProperty('error')) {
+                if (response.data.error == "unauthenticated") {
+                  //that.relogin();
+                  return false;
+                }
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+              that.vipInfo = response.data.data;
+            })
+            .catch(function (error) { // 请求失败处理
+              layer.closeAll('loading');
+              console.log(error);
+            });
+        },
+        getFiles() {
+          var that = this;
+          var filesload = layer.load(1);
+          var data = that.currentUser;
+          data['pagetoken'] = that.pagetoken;
+          data['path'] = that.path;
+          var url = '/getFiles';
+          axios.post(url, data)
+            .then(function (response) {
+              layer.close(filesload);
+              if (response.data.hasOwnProperty('error')) {
+                if (response.data.error == "unauthenticated") {
+                  //that.relogin();
+                  return false;
+                }
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+              $.map(response.data['files'], function (o) { return that.files.push(o); });
+              if (response.data['next_page_token'].length > 0) {
+                var next_page_token = response.data['next_page_token'];
+                that.pagetoken = next_page_token;
+              } else {
+                that.pagetoken = "";
+              }
+            })
+            .catch(function (error) { // 请求失败处理
+              layer.closeAll('loading');
+              console.log(error);
+            });
+        },
+        getEvents() {
+          var that = this;
+          if (that.allusers.length <= 0) {
+            return false;
+          }
+          var eventload = layer.load(1);
+          var data = that.currentUser;
+          data['pagetoken'] = that.evnetPageToken;
+          var url = '/getEvents';
+          axios.post(url, data)
+            .then(function (response) {
+              layer.close(eventload);
+             
+              if (response.data.hasOwnProperty('error')) {
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+
+              if (response.data == "error") {
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+              if (Object.keys(that.vipInfo).length === 0 && that.vipInfo.constructor === Object) {
+                setTimeout(function () {
+                  that.getVip();
+                }, 1000);
+              }
+              $.map(response.data['events'], function (o) { return that.events.push(o); });
+              if (response.data['next_page_token'].length > 0) {
+                var next_page_token = response.data['next_page_token'];
+                that.evnetPageToken = next_page_token;
+              } else {
+                that.pagetoken = "";
+              }
+
+
+            })
+            .catch(function (error) { // 请求失败处理
+              layer.closeAll('loading');
+              console.log(error);
+            });
+        },
+        getDownloads() {
+          var downloadload = layer.load(1);
+          var that = this;
+          var data = that.currentUser;
+          var url = '/getDownloads';
+          axios.post(url, data)
+            .then(function (response) {
+              //console.log(response);
+              layer.close(downloadload);
+              if (response.data.hasOwnProperty('error')) {
+                if (response.data.error == "unauthenticated") {
+                  //that.relogin();
+                  return false;
+                }
+                layer.msg("请求出错，请检查数据库配置，稍后重试或重新登陆");
+                return false;
+              }
+              if (response.data == "error") {
+                layer.msg("请求出错，请检查数据库配置，稍后重试或重新登陆");
+                return false;
+              }
+
+              $.map(response.data, function (o) {
+                o.name = o.url.substr(o.url.indexOf('##') + 2);
+                o.expire = "";
+                return that.downloads.push(o);
+              });
+
+            })
+            .catch(function (error) { // 请求失败处理
+              layer.closeAll('loading');
+              console.log(error);
+            });
+        },
+        refresh: function () {
+          var that = this;
+          layer.load(1);
+          switch (that.bottomNavition) {
+            case 0:
+              that.evnetPageToken = '',
+                that.events = [],
+                that.getEvents();
+              break;
+            case 1:
+              that.pagetoken = '',
+                that.files = [],
+                that.getFiles();
+              break;
+            case 2:
+              that.downloads = [];
+              that.getDownloads()
+              break;
+            default:
+              that.evnetPageToken = '',
+                that.events = [],
+                that.getEvents();
+          }
+          layer.closeAll('loading');
+        },
+        LoadMore: function () {
+          var that = this;
+          if (that.bottomNavition == 0) {
+            if (that.evnetPageToken == '') {
+              layer.alert('已经是最后一页了');
+              return false;
+            }
+            that.getEvents();
+          } else {
+            if (that.pagetoken == '') {
+              layer.alert('已经是最后一页了');
+              return false;
+            }
+            that.getFiles();
+          }
+        },
+        async play(vfile) {
+          layer.load(1);
+          var that = this;
+          that.medias = [];
+          var data = that.currentUser;
+          data['id'] = vfile['id'];
+          if (that.bottomNavition == 0) {
+            data['id'] = vfile['reference_resource']['id'];
+          }
+          var url = "/getDownload";
+          await axios.post(url, data)
+            .then(function (response) {
+              //console.log(response.data);
+              vfile['name']=response.data['name'];
+              that.medias = response.data['medias'];
+              var videoUrl = "";
+              var expire = "";
+              if (that.medias.length === 0) {
+                videoUrl = response.data['web_content_link'];
+                expire = response.data['links']['application/octet-stream']['expire'];
+                that.medias.splice(0, 0, { "media_name": response.data['name'], "link": { "url": videoUrl } });
+              } else {
+                videoUrl = that.medias[0]['link']['url'];
+                expire = that.medias[0]['link']['expire'];
+              }
+              var media_name_arr = $.map(that.medias, function (o) { return o["media_name"]; });
+
+              layer.closeAll('loading');
+              if (response.data == 'error') {
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+
+              var contenthmtl = '';
+
+              $.each(media_name_arr, function (index, value) {
+                contenthmtl += '<a style="margin:5px;padding:5px;" class="v-btn v-btn--outlined theme--light" onclick="copyUrl(' + index + ')">复制' + value + '</a>';
+              });
+              contenthmtl += '<a style="margin:5px;padding:5px;" class="v-btn v-btn--outlined theme--light" href="vlc://' + videoUrl + '" target="_blank">VLC打开</a>';
+              contenthmtl += '<a style="margin:5px;padding:5px;" class="v-btn v-btn--outlined theme--light" onclick="copyWeb3(\'' + videoUrl + '##' + vfile['name'] + '\')">复制下载</a>';
+              contenthmtl += '<a style="margin:5px;padding:5px;" class="v-btn v-btn--outlined theme--light" onclick="addDownload(\'' + response.data['name'] + '\',\'' + videoUrl + '\',' + response.data['size'] + ',\'' + expire + '\')">添加到下载</a>';
+              contenthmtl += '<a style="margin:5px;padding:5px;" class="v-btn v-btn--outlined theme--light" onclick="openVideo(\'' + videoUrl + '\')" target="_blank">新网页打开</a>';
+
+              layer.open({
+                type: 1,
+                title: response.data['name'],
+                content: "<div class=\"text-center\" style=\"padding:10px\">" + contenthmtl + "</div>"
+              });
+              //layer.confirm('已经获取到播放地址，请选择操作', {btn: media_name_arr});
+            })
+            .catch(function (error) { // 请求失败处理
+              console.log(error);
+            });
+
+        },
+        delfiles: function () {
+          var that = this;
+          layer.confirm('您确定要删除文件？不可恢复', {
+            btn: ['删除', '取消'] //按钮
+          }, function () {
+            layer.load(1);
+            that.files = [];
+            that.pageNo = 1;
+            that.totalPage = 1;
+            that.totalNum = 0;
+            var url = "/delFile";
+            var data = that.currentUser;
+            data['ids'] = JSON.stringify(that.ids);
+            axios.post(url, data)
+              .then(function (response) {
+                layer.closeAll('loading');
+                if (response.data == 'error') {
+                  layer.msg("请求出错，稍后重试或重新登陆");
+                  return false;
+                }
+                layer.msg('删除成功', { icon: 1 });
+                that.ids = [];
+                that.selecting = false;
+                if (that.bottomNavition == 0) {
+                  that.events = [];
+                  that.evnetPageToken = "";
+                  that.getEvents();
+                } else {
+                  that.files = [];
+                  that.pagetoken = "";
+                  that.getFiles();
+                }
+              })
+              .catch(function (error) { // 请求失败处理
+                console.log(error);
+              });
+          }, function () {
+            that.ids = [];
+          });
+        },
+        openVideo: function (videoUrl) {
+          var a = window.open('about:blank').document;
+          a.body.innerHTML = '<div style="width: 100%;text-align: center;"><video id="example_video_1" class="video-js vjs-default-skin" controls preload="none" style="width:90%;margin: 0 auto;" <source src="' + videoUrl + '" type="video/mp4"> </video></br><textarea style="width: 100%">' + videoUrl + '</textarea></div>';
+          return false;
+        },
+        copyUrl: function (index) {
+          var that = this;
+          videoUrl = that.medias[index]['link']['url'];
+          that.$copyText(videoUrl).then(function (e) {
+            alert("复制成功");
+          }, function (e) {
+            alert("复制失败，请手动复制");
+          })
+        },
+        copyWeb3: function (text) {
+          var that = this;
+          that.$copyText(text).then(function (e) {
+            alert("复制成功");
+          }, function (e) {
+            alert("复制失败，请手动复制");
+          })
+        },
+        addDownload: function (name, videourl, size, expire) {
+          var that = this;
+          var isnow = 1;
+          if (size >= 10000000000) {
+            isnow = 0;
+          }
+          var download = { 'name': name, 'url': videourl, 'isnow': isnow, 'expire': expire };
+          that.download_list.push(download);
+          localStorage.setItem("downloadList", JSON.stringify(that.download_list));
+          var event = document.createEvent("Event");
+          event.initEvent("storage", true, true);
+          window.dispatchEvent(event);
+          layer.alert("添加成功");
+        },
+        editDownloadItem(item) {
+          this.editedDownloadIndex = this.download_list.indexOf(item);
+          this.editedDownloadItem = Object.assign({}, item);
+          this.dialogEditDownload = true;
+          this.editItemOriName = item.name;
+        },
+        deleteDownload: function (item) {
+          var that = this;
+          that.download_list = JSON.parse(localStorage.getItem("downloadList"));
+          var deleteIndex = that.download_list.map(function (e) { return e.url; }).indexOf(item.url);
+          that.download_list.splice(deleteIndex, 1);
+          localStorage.setItem("downloadList", JSON.stringify(that.download_list));
+        },
+        removeDownloadItem: function (item) {
+          var that = this;
+          //console.log(item._id.$oid);
+          var removeload = layer.load(1);
+          var url = "/removeDownloadItem";
+          var data = that.currentUser;
+          data['id'] = item._id.$oid;
+          axios.post(url, data)
+            .then(function (response) {
+              layer.close(removeload);
+              if (response.data == 'error') {
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+              layer.msg('删除成功', { icon: 1 });
+              var deleteIndex = that.downloads.map(function (e) { return e.url; }).indexOf(item.url);
+              that.downloads.splice(deleteIndex, 1);
+            })
+            .catch(function (error) { // 请求失败处理
+              console.log(error);
+            });
+        },
+        closeEditDownload() {
+          this.dialogEditDownload = false;
+          this.$nextTick(() => {
+            this.editedItem = Object.assign({}, this.defaultItem);
+            this.editedIndex = -1;
+            this.editItemOriName = '';
+          })
+        },
+        saveEditDownload() {
+          if (this.editedDownloadIndex > -1) {
+            Object.assign(this.download_list[this.editedDownloadIndex], this.editedDownloadItem);
+          } else {
+            this.download_list.push(this.editedDownloadItem);
+          }
+          this.closeEditDownload();
+          localStorage.setItem("downloadList", JSON.stringify(this.download_list));
+        },
+        quickRename() {
+          var download_list_array = JSON.parse(localStorage.getItem("downloadList"));
+          download_list_array.map((d) => {
+            const regex = /[A-Za-z]+\-[0-9]+/g;
+            const found = d.name.match(regex);
+            if (found) {
+              var fileExtension = d.name.substring(d.name.lastIndexOf('.'));
+              d.name = found[0] + fileExtension;
+            }
+            return d
+          });
+          this.download_list = download_list_array;
+          localStorage.setItem("downloadList", JSON.stringify(this.download_list));
+        },
+        updateDownload: function () {
+          var that = this;
+          that.download_list = JSON.parse(localStorage.getItem("downloadList"));
+        },
+        copyDownload: function () {
+          var that = this;
+          const container = document.querySelector('.v-dialog');
+          var download_list_array = JSON.parse(localStorage.getItem("downloadList"));
+          download_list_array.map((d) => {
+            d.url = d.url + "##" + d.name
+            return d
+          });
+          var download_list_string = pluck(download_list_array, 'url').join('\n');
+          that.$copyText(download_list_string, container).then(function (e) {
+            alert("复制下载地址成功");
+          }, function (e) {
+            alert("复制下载地址失败，请手动复制");
+          })
+        },
+        saveDownload: function () {
+          var that = this;
+          // var download_list_array = JSON.parse(localStorage.getItem("downloadList"));
+          // download_list_array.map( (d) => {
+          //   d.url = d.url + "##" +d.name
+          //   return d
+          // });
+          // var download_list_string = pluck(download_list_array,'url').join('\n');
+          var data = that.currentUser;
+          data['download-list'] = localStorage.getItem("downloadList");
+          var url = '/saveDownloads';
+          var downloadsload = layer.load(1);
+          axios.post(url, data)
+            .then(function (response) {
+              layer.close(downloadsload);
+              layer.alert(response.data);
+            })
+            .catch(function (error) { // 请求失败处理
+              layer.closeAll('loading');
+              console.log(error);
+            });
+        },
+        aria2Download: function () {
+          var aria2LoadIndex = layer.load(1);
+          var that = this;
+          var download_index = 0;
+          var download_list_array = JSON.parse(localStorage.getItem("downloadList"));
+          var count = download_list_array.length;
+          var url = that.aria2Url;
+          download_list_array.map((d) => {
+            var data = { "jsonrpc": "2.0", "id": "qwer", "method": "aria2.addUri", "params": ["token:" + that.aria2Token, [d.url], { "out": d.name, "dir": that.aria2Dir }] }
+            $.ajax({
+              async: false,
+              url: url,
+              data: JSON.stringify(data),
+              type: "post",
+              dataType: "json",
+              success: function (obj) {
+                download_index += 1;
+              },
+              error: function (jqXHR, textStatus, errorThrown) {
+                console.log(errorThrown);
+              }
+            });
+          });
+          layer.close(aria2LoadIndex);
+          layer.alert("共下载" + count + "个文件,成功" + download_index + "个");
+        },
+        clearDownload: function () {
+          var that = this;
+          that.download_list = [];
+          localStorage.setItem("downloadList", JSON.stringify(that.download_list));
+        },
+        handleFunctionCall(functionName, event) {
+          this[functionName](event)
+        },
+        setLogin(event) {
+          this.showLogin = true;
+        },
+        offline: function (i) {
+          var that = this;
+          that.action = 'offline';
+          layer.prompt({ title: '添加磁力链接', formType: 2 }, function (text, index) {
+            layer.close(index);
+            layer.load(1);
+            var data = that.currentUser;
+            data['textLink'] = text;
+            var url = "/offline";
+            axios.post(url, data)
+              .then(function (response) {
+                layer.closeAll('loading');
+                //console.log(response);
+                if (response.data == 'error') {
+                  layer.msg("请求出错，稍后重试或重新登陆");
+                  return false;
+                } else {
+                  layer.msg('添加成功');
+                  return false;
+                }
+
+              })
+              .catch(function (error) { // 请求失败处理
+                console.log(error);
+              });
+            //layer.msg('演示完毕！您的口令：'+ pass +'<br>您最后写下了：'+text);
+          });
+        },
+        onScroll(e) {
+          if (typeof window === 'undefined') return
+          const top = window.pageYOffset || e.target.scrollTop || 0
+          this.fab = top > 20
+        },
+        toTop() {
+          this.$vuetify.goTo(0)
+        },
+        is_expire(expire) {
+          if (expire.length <= 0) {
+            return true
+          }
+          const now = Date.now();
+          const expire_time = new Date(expire).getTime();
+          if (expire_time - now <= 0) {
+            return false
+          }
+          return true
+        },
+        triggerTask: function () {
+          var that = this;
+          var triggerTaskload = layer.load(1);
+          var url = "/triggerTask";
+          var data = that.currentUser;
+          axios.post(url, data)
+            .then(function (response) {
+              layer.close(triggerTaskload);
+              if (response.data == 'error') {
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+              layer.msg('任务开启成功', { icon: 1 });
+            })
+            .catch(function (error) { // 请求失败处理
+              console.log(error);
+            });
+        },
+        triggerMac: function () {
+          var that = this;
+          var triggerMacload = layer.load(1);
+          var url = "/triggerMac";
+          var data = that.currentUser;
+          axios.post(url, data)
+            .then(function (response) {
+              layer.close(triggerMacload);
+              if (response.data == 'error') {
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+              layer.msg('任务开启成功', { icon: 1 });
+            })
+            .catch(function (error) { // 请求失败处理
+              console.log(error);
+            });
+        },
+        saveSetting: function () {
+          localStorage.ebableLock = this.ebableLock;
+          localStorage.lockCode = this.lockCode;
+          localStorage.aria2Url = this.aria2Url;
+          localStorage.aria2Token = this.aria2Token;
+          localStorage.aria2Dir = this.aria2Dir;
+        }
+      },
+    })
+
+    function copyUrl(index) {
+      app.copyUrl(index);
+    }
+    function copyWeb3(text) {
+      app.copyWeb3(text);
+    }
+    function openVideo(videoUrl) {
+      app.openVideo(videoUrl);
+    }
+    function addDownload(name, videoUrl, size, expire) {
+      app.addDownload(name, videoUrl, size, expire);
+    }
+    function onStorageEvent(e) {
+      app.updateDownload();
+    }
+    window.addEventListener("storage", onStorageEvent);
+  </script>
+</body>
+</html>
