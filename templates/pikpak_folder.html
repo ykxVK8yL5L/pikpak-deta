@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <link href="https://cdn.jsdelivr.net/npm/roboto-font@0.1.0/css/fonts.min.css" rel="stylesheet">
   <link href="https://cdn.bootcdn.net/ajax/libs/MaterialDesign-Webfont/7.1.96/css/materialdesignicons.min.css" rel="stylesheet">
-  <link href="{{ url_for('static', path='css/vuetify.min.css') }}" rel="stylesheet">
+  <link href="/static/css/vuetify.min.css" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
   <style>
     .current_search {
@@ -261,9 +261,9 @@
           <v-divider></v-divider>
 
           <v-card-actions>
-            <!-- <v-btn color="primary" text @click="copyDownload">
-              复制下载
-            </v-btn> -->
+            <v-btn color="primary" text @click="saveDownload">
+              保存下载
+            </v-btn>
 
             <v-spacer></v-spacer>
             <v-btn color="primary" text @click="clearDownload">
@@ -561,12 +561,12 @@
     </v-speed-dial>
     </v-app>
   </div>
-  <script type="application/javascript" src="{{ url_for('static', path='js/jquery-3.5.1.min.js') }}"></script>
-  <script src="{{ url_for('static', path='js/vue.js') }}"></script>
-  <script src="{{ url_for('static', path='js/axios.min.js') }}"></script>
-  <script src="{{ url_for('static', path='js/vuetify.min.js') }}"></script>
-  <script type="application/javascript" src="{{ url_for('static', path='layer/layer.js') }}"></script>
-  <script type="application/javascript" src="{{ url_for('static', path='js/vue-clipboard.min.js') }}"></script>
+  <script type="application/javascript" src="/static/js/jquery-3.5.1.min.js"></script>
+  <script src="/static/js/vue.js"></script>
+  <script src="/static/js/axios.min.js"></script>
+  <script src="/static/js/vuetify.min.js"></script>
+  <script type="application/javascript" src="/static/layer/layer.js"></script>
+  <script type="application/javascript" src="/static/js/vue-clipboard.min.js"></script>
   <script>
     const axios_instance = axios.create({
       timeout: 6000,
@@ -1282,14 +1282,8 @@
         },
         saveDownload: function () {
           var that = this;
-          // var download_list_array = JSON.parse(localStorage.getItem("downloadList"));
-          // download_list_array.map( (d) => {
-          //   d.url = d.url + "##" +d.name
-          //   return d
-          // });
-          // var download_list_string = pluck(download_list_array,'url').join('\n');
           var data = that.currentUser;
-          data['download-list'] = localStorage.getItem("downloadList");
+          data['download_list'] = localStorage.getItem("downloadList");
           var url = '/saveDownloads';
           var downloadsload = layer.load(1);
           axios.post(url, data)
@@ -1302,6 +1296,28 @@
               console.log(error);
             });
         },
+        // saveDownload: function () {
+        //   var that = this;
+        //   // var download_list_array = JSON.parse(localStorage.getItem("downloadList"));
+        //   // download_list_array.map( (d) => {
+        //   //   d.url = d.url + "##" +d.name
+        //   //   return d
+        //   // });
+        //   // var download_list_string = pluck(download_list_array,'url').join('\n');
+        //   var data = that.currentUser;
+        //   data['download-list'] = localStorage.getItem("downloadList");
+        //   var url = '/saveDownloads';
+        //   var downloadsload = layer.load(1);
+        //   axios.post(url, data)
+        //     .then(function (response) {
+        //       layer.close(downloadsload);
+        //       layer.alert(response.data);
+        //     })
+        //     .catch(function (error) { // 请求失败处理
+        //       layer.closeAll('loading');
+        //       console.log(error);
+        //     });
+        // },
         aria2Download: function () {
           var aria2LoadIndex = layer.load(1);
           var that = this;

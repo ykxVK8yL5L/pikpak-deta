@@ -18,6 +18,7 @@ import json
 
 deta = Deta()
 DETA_USER_DB = deta.Base("pikpak_user")
+DETA_TASK_DB = deta.Base("pikpak_task")
 
 
 app = FastAPI(docs_url=None, redoc_url=None)
@@ -227,6 +228,78 @@ def getDownload(item: PostRequest):
         if r.status_code != 200:
             return 'error'
         return json.dumps(result)
+
+
+
+@app.post('/getDownloads')
+def getDownloads(item: PostRequest):
+    try:
+        res = DETA_TASK_DB.fetch()
+        all_items = res.items
+        while res.last:
+            res = DETA_TASK_DB.fetch(last=res.last)
+            all_items += res.items
+    except:
+        return 'error'
+    else:
+        return all_items
+        return Response(content=r.text, media_type="application/json")
+        result = json.loads(r.text)
+        if r.status_code != 200:
+            return 'error'
+        return json.dumps(result)
+
+
+
+@app.post('/saveDownloads')
+def saveDownloads(item: PostRequest):
+    download_list = item.download_list
+    try:
+        download_object = json.loads(download_list)
+        if len(download_object)>1:
+            download_list = []
+            for download_item in download_object:
+                download_task={}
+                #download_task['key']=download_item['name']
+                download_task['url']=download_item['url']+"##"+download_item['name']
+                download_task['isnow']=download_item['isnow']
+                download_task['expire']=download_item['expire']
+                download_list.append(download_task);
+            result=DETA_TASK_DB.putMany(download_list)
+            insert_result = "共添加{count}个成功{success}个!"
+            return insert_result.format(count=len(download_object),success=len(result))
+        else:
+            download_task={}
+            #download_task['key']=download_object[0]['name']
+            download_task['url']=download_object[0]['url']+"##"+download_object[0]['name']
+            download_task['isnow']=download_object[0]['isnow']
+            download_task['expire']=download_object[0]['expire']
+            result = DETA_TASK_DB.put(download_task);
+            insert_result="添加成功"
+            return insert_result
+    except:
+        return 'error'
+    
+
+@app.post('/removeDownloadItem')
+def removeDownloadItem(item: PostRequest):
+    try:
+        DETA_TASK_DB.delete(item.id)
+        result="添加成功"
+        return result
+    except:
+        return 'error'
+
+@app.post('/resetStatus')
+def resetStatus(item: PostRequest):
+    try:
+        items = DETA_TASK_DB.fetch().items
+        for item in items:
+            item['isnow'] = '1'
+            DETA_TASK_DB.put(item)
+        return "更新完成"
+    except:
+        return 'error'
 
 
 @app.post('/offline')

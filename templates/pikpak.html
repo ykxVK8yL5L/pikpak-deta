@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <link href="https://cdn.jsdelivr.net/npm/roboto-font@0.1.0/css/fonts.min.css" rel="stylesheet">
   <link href="https://cdn.bootcdn.net/ajax/libs/MaterialDesign-Webfont/7.1.96/css/materialdesignicons.min.css" rel="stylesheet">
-  <link href="{{ url_for('static', path='css/vuetify.min.css') }}" rel="stylesheet">
+  <link href="/static/css/vuetify.min.css" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
   <style>
     .current_search {
@@ -264,6 +264,9 @@
             <!-- <v-btn color="primary" text @click="copyDownload">
               复制下载
             </v-btn> -->
+             <v-btn color="primary" text @click="saveDownload">
+              保存下载
+            </v-btn>
 
             <v-spacer></v-spacer>
             <v-btn color="primary" text @click="clearDownload">
@@ -497,6 +500,49 @@
           </v-row>
         </v-container>
 
+        <v-container v-if="contentContainer=='downloads'" style="padding-bottom: 60px;">
+          <v-row dense id="eventlist">
+            <v-col cols="12">
+              <v-card>
+                <v-card-title class="text-h5 grey lighten-2 justify-space-between">
+                  下载列表  
+                </v-card-title>
+
+                <v-card-text>
+                  <v-data-table :headers="downloads_headers" :items="downloads" class="elevation-1 text-break">
+                    <template v-slot:item.isnow="{ item }">
+                      <v-chip :color="download_status[item.isnow]" dark>
+                        ${ item.isnow|downloadStatus }
+                      </v-chip>
+                    </template>
+                    <template v-slot:item.expire="{item}">
+                      <v-badge :color="is_expire(item.expire)?'green':'error'">
+                      </v-badge>
+                    </template>
+                    <template v-slot:item.actions="{ item }">
+                      <v-icon @click="removeDownloadItem(item)" small>
+                        mdi-delete
+                      </v-icon>
+                    </template>
+                  </v-data-table>
+                </v-card-text>
+                <v-card-actions>
+                 
+                  <v-spacer></v-spacer>
+                  <v-btn color="blue darken-1" text @click="resetStatus">
+                    重置下载状态
+                  </v-btn>
+                  <v-spacer></v-spacer>
+
+                </v-card-actions>
+              </v-card>
+            </v-col>
+          </v-row>
+        </v-container>
+
+
+
+
     
       </v-main>
       <v-bottom-navigation v-model="bottomNavition" color="primary" style="position: fixed" absolute>
@@ -506,6 +552,10 @@
 
         <v-btn>
           <v-icon>mdi-folder</v-icon>
+        </v-btn>
+
+        <v-btn>
+          <v-icon>mdi-download-multiple</v-icon>
         </v-btn>
 
       </v-bottom-navigation>
@@ -561,12 +611,12 @@
     </v-speed-dial>
     </v-app>
   </div>
-  <script type="application/javascript" src="{{ url_for('static', path='js/jquery-3.5.1.min.js') }}"></script>
-  <script src="{{ url_for('static', path='js/vue.js') }}"></script>
-  <script src="{{ url_for('static', path='js/axios.min.js') }}"></script>
-  <script src="{{ url_for('static', path='js/vuetify.min.js') }}"></script>
-  <script type="application/javascript" src="{{ url_for('static', path='layer/layer.js') }}"></script>
-  <script type="application/javascript" src="{{ url_for('static', path='js/vue-clipboard.min.js') }}"></script>
+  <script type="application/javascript" src="/static/js/jquery-3.5.1.min.js"></script>
+  <script src="/static/js/vue.js"></script>
+  <script src="/static/js/axios.min.js"></script>
+  <script src="/static/js/vuetify.min.js"></script>
+  <script type="application/javascript" src="/static/layer/layer.js"></script>
+  <script type="application/javascript" src="/static/js/vue-clipboard.min.js"></script>
   <script>
     const axios_instance = axios.create({
       timeout: 6000,
@@ -888,7 +938,6 @@
           this.medias = [];
           this.bottomNavition = 0;
           this.getEvents();
-
         },
         getVip: function () {
           var vipload = layer.load(1);
@@ -1207,11 +1256,10 @@
         },
         removeDownloadItem: function (item) {
           var that = this;
-          //console.log(item._id.$oid);
           var removeload = layer.load(1);
           var url = "/removeDownloadItem";
           var data = that.currentUser;
-          data['id'] = item._id.$oid;
+          data['id'] = item.key;
           axios.post(url, data)
             .then(function (response) {
               layer.close(removeload);
@@ -1222,6 +1270,25 @@
               layer.msg('删除成功', { icon: 1 });
               var deleteIndex = that.downloads.map(function (e) { return e.url; }).indexOf(item.url);
               that.downloads.splice(deleteIndex, 1);
+            })
+            .catch(function (error) { // 请求失败处理
+              console.log(error);
+            });
+        },
+        resetStatus:function(){
+          var that = this;
+          var resetStatusload = layer.load(1);
+          var url = "/resetStatus";
+          var data = that.currentUser;
+          axios.post(url, data)
+            .then(function (response) {
+              layer.close(resetStatusload);
+              if (response.data == 'error') {
+                layer.msg("请求出错，稍后重试或重新登陆");
+                return false;
+              }
+              that.downloads = [];
+              that.getDownloads();
             })
             .catch(function (error) { // 请求失败处理
               console.log(error);
@@ -1279,14 +1346,8 @@
         },
         saveDownload: function () {
           var that = this;
-          // var download_list_array = JSON.parse(localStorage.getItem("downloadList"));
-          // download_list_array.map( (d) => {
-          //   d.url = d.url + "##" +d.name
-          //   return d
-          // });
-          // var download_list_string = pluck(download_list_array,'url').join('\n');
           var data = that.currentUser;
-          data['download-list'] = localStorage.getItem("downloadList");
+          data['download_list'] = localStorage.getItem("downloadList");
           var url = '/saveDownloads';
           var downloadsload = layer.load(1);
           axios.post(url, data)
