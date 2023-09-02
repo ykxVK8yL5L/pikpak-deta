@@ -116,11 +116,11 @@ def relogin(user:User):
     return 'error'
 
 
-@app.post('/relogin')
-def relogin(user:User):
-    username = user.username
-    DETA_USER_DB.update(user,username)
-    return 'ok'
+# @app.post('/relogin')
+# def relogin(user:User):
+#     username = user.username
+#     DETA_USER_DB.update(user,username)
+#     return 'ok'
 
 @app.get('/getUsers')
 def getUsers():
