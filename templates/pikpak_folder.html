@@ -1193,7 +1193,7 @@
           var event = document.createEvent("Event");
           event.initEvent("storage", true, true);
           window.dispatchEvent(event);
-          layer.alert("添加成功");
+          layer.msg("添加成功");
         },
         editDownloadItem(item) {
           this.editedDownloadIndex = this.download_list.indexOf(item);
