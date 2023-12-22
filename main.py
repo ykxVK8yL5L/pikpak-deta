@@ -265,7 +265,7 @@ def saveDownloads(item: PostRequest):
                 download_task['isnow']=download_item['isnow']
                 download_task['expire']=download_item['expire']
                 download_list.append(download_task);
-            result=DETA_TASK_DB.putMany(download_list)
+            result=DETA_TASK_DB.put_many(download_list)
             insert_result = "共添加{count}个成功{success}个!"
             return insert_result.format(count=len(download_object),success=len(result))
         else:
