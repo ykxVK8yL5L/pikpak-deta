@@ -1230,9 +1230,9 @@
         addDownload: function (name, videourl, size, expire) {
           var that = this;
           var isnow = 1;
-          if (size >= 10000000000) {
-            isnow = 0;
-          }
+          // if (size >= 10000000000) {
+          //   isnow = 0;
+          // }
           var download = { 'name': name, 'url': videourl, 'isnow': isnow, 'expire': expire };
           that.download_list.push(download);
           localStorage.setItem("downloadList", JSON.stringify(that.download_list));
