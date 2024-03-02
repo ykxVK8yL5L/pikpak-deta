@@ -20,3 +20,4 @@ jobs:
           project_id: ${{ secrets.SPACE_PROJECT_ID }}
           space_push: true
           space_release: true
+          list_on_discovery: true
