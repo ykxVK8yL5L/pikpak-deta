@@ -8,3 +8,5 @@ micros:
     primary: true
     run: uvicorn main:app 
     dev: uvicorn main:app --reload
+    presets:
+          api_keys: true

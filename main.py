@@ -55,7 +55,9 @@ class PostRequest(BaseModel):
     class Config:
         extra = Extra.allow
 
-
+class ThirdPostRequest(BaseModel):
+    class Config:
+        extra = Extra.allow
 
 
 
@@ -325,6 +327,7 @@ def offline(item: PostRequest):
     result = json.loads(r.text)
     if r.status_code != 200 or result['upload_type'] is None:
         return 'error'
+    print(r.text)
     return json.dumps(r.text)
 
 
@@ -372,3 +375,24 @@ def getVip(item: PostRequest):
         if r.status_code != 200 or 'error' in result:
             return 'error'
         return json.dumps(result)
+
+
+
+@app.post('/downloads')
+def getVip(item: ThirdPostRequest):
+    action = item.action
+    if action =="query":
+        res = DETA_TASK_DB.fetch({ "isnow": 1})
+        all_items = res.items
+        return all_items
+    if action =="update":
+        key = item.data
+        res = DETA_TASK_DB.update({ "isnow": 10},key)
+        return res
+    if action =="delete":
+        key = item.data
+        res = DETA_TASK_DB.delete(key)
+        return res
+    return {"message","ok"}
+    
+
